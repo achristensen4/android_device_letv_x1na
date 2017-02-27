@@ -100,7 +100,7 @@ on init
     write /proc/sys/kernel/sched_compat_yield 1
     write /proc/sys/kernel/sched_child_runs_first 0
     write /proc/sys/kernel/randomize_va_space 2
-    write /proc/sys/kernel/kptr_restrict 2
+    write /proc/sys/kernel/kptr_restrict 0
     write /proc/sys/vm/mmap_min_addr 32768
     write /proc/sys/net/ipv4/ping_group_range "0 2147483647"
     write /proc/sys/net/unix/max_dgram_qlen 300
@@ -193,7 +193,7 @@ on late-init
 
 on post-fs
     # once everything is setup, no need to modify /
-    mount rootfs rootfs / ro remount
+    mount rootfs rootfs / rw remount
     # mount shared so changes propagate into child namespaces
     mount rootfs rootfs / shared rec
 
@@ -330,7 +330,7 @@ on post-fs-data
     # must uncomment this line, otherwise encrypted filesystems
     # won't work.
     # Set indication (checked by vold) that we have finished this action
-    #setprop vold.post_fs_data_done 1
+    setprop vold.post_fs_data_done 1
 
 on boot
     # basic network init
@@ -458,7 +458,7 @@ on property:sys.init_log_level=*
 
 on charger
     wait /dev/block/bootdevice/by-name/system
-    mount ext4 /dev/block/bootdevice/by-name/system /system ro barrier=1
+    mount ext4 /dev/block/bootdevice/by-name/system /system rw barrier=1
 
     setprop ro.board.platform msm8994
     start qcom-post-boot
@@ -521,7 +521,6 @@ service healthd /sbin/healthd
 service console /system/bin/sh
     class core
     console
-    disabled
     user shell
     group shell log
     seclabel u:r:shell:s0
@@ -533,7 +532,6 @@ on property:ro.debuggable=1
 service adbd /sbin/adbd --root_seclabel=u:r:su:s0
     class core
     socket adbd stream 660 system system
-    disabled
     seclabel u:r:adbd:s0
 
 # adbd on at boot in emulator
@@ -559,7 +557,6 @@ service servicemanager /system/bin/servicemanager
 service vold /system/bin/vold
     class core
     socket vold stream 0660 root mount
-    ioprio be 2
 
 service netd /system/bin/netd
     class main
@@ -596,19 +593,16 @@ service media /system/bin/mediaserver
     class main
     user media
     group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc mediadrm qcom_diag
-    ioprio rt 4
     onrestart restart qcamerasvr
 
 # One shot invocation to deal with encrypted volume.
 service defaultcrypto /system/bin/vdc --wait cryptfs mountdefaultencrypted
-    disabled
     oneshot
     # vold will set vold.decrypt to trigger_restart_framework (default
     # encryption) or trigger_restart_min_framework (other encryption)
 
 # One shot invocation to encrypt unencrypted volumes
 service encrypt /system/bin/vdc --wait cryptfs enablecrypto inplace default
-    disabled
     oneshot
     # vold will set vold.decrypt to trigger_restart_framework (default
     # encryption)
@@ -617,12 +611,10 @@ service bootanim /system/bin/bootanimation
     class core
     user root
     group graphics audio
-    disabled
     oneshot
 
 service nativelog /system/bin/letv_log_collector
     class main
-    disabled
     oneshot
 
 service corecatcher /system/bin/coredumpcollector -d /sdcard/logs/dumpfiles
@@ -648,7 +640,6 @@ service racoon /system/bin/racoon
     socket racoon stream 600 system system
     # IKE uses UDP port 500. Racoon will setuid to vpn after binding the port.
     group vpn net_admin inet
-    disabled
     oneshot
 
 service mtpd /system/bin/mtpd
@@ -656,7 +647,6 @@ service mtpd /system/bin/mtpd
     socket mtpd stream 600 system system
     user vpn
     group vpn net_admin inet net_raw
-    disabled
     oneshot
 
 service keystore /system/bin/keystore /data/misc/keystore
@@ -667,7 +657,6 @@ service keystore /system/bin/keystore /data/misc/keystore
 service dumpstate /system/bin/dumpstate -s
     class main
     socket dumpstate stream 0660 shell log
-    disabled
     oneshot
 
 service mdnsd /system/bin/mdnsd
@@ -675,19 +664,16 @@ service mdnsd /system/bin/mdnsd
     user mdnsr
     group inet net_raw
     socket mdnsd stream 0660 mdnsr inet
-    disabled
     oneshot
 
 service pre-recovery /system/bin/uncrypt
     class main
-    disabled
     oneshot
 
 # BEGIN MOBILEP-817 GZM 20141112
 service letv_fts_service /system/bin/fts ui
     user root
     group root
-    disabled
     oneshot
 # END MOBILEP-817 GZM 20141112
 
@@ -707,4 +693,3 @@ service ufsd /system/xbin/start-ufsd
     class main
     user root
     oneshot
-
