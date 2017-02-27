@@ -48,10 +48,10 @@ on fs
     mkdir /persist/data 0700 system system
 
     wait /dev/block/bootdevice/by-name/modem
-    mount vfat /dev/block/bootdevice/by-name/modem /firmware ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337,context=u:object_r:firmware_file:s0
+    mount vfat /dev/block/bootdevice/by-name/modem /firmware rw shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337,context=u:object_r:firmware_file:s0
 
     wait /dev/block/bootdevice/by-name/bluetooth
-    mount vfat /dev/block/bootdevice/by-name/bluetooth /bt_firmware ro shortname=lower,uid=1002,gid=3002,dmask=227,fmask=337,context=u:object_r:firmware_file:s0
+    mount vfat /dev/block/bootdevice/by-name/bluetooth /bt_firmware rw shortname=lower,uid=1002,gid=3002,dmask=227,fmask=337,context=u:object_r:firmware_file:s0
 
 on post-fs-data
     mkdir /data/tombstones 0771 system system
@@ -74,7 +74,7 @@ on boot
     start rmt_storage
     start rfs_access
     write /sys/bus/i2c/devices/2-0020/input/input0/update_fw 1
-    write /proc/sys/kernel/sched_boost 1
+    write /proc/sys/kernel/sched_boost 0
     write /proc/sys/vm/dirty_ratio 5
     write /proc/sys/vm/dirty_background_ratio 1
     #enable power logs for debugging, DMX
@@ -92,32 +92,30 @@ on boot
 
 #start camera server as daemon
 service qcamerasvr /system/bin/mm-qcamera-daemon
-    class late_start
+    class main
     user camera
     group camera system inet input graphics
 
 ## Allow usb charging to be disabled persistently
-#on property:persist.usb.chgdisabled=1
-#    write /sys/class/power_supply/battery/charging_enabled 0
-#
-#on property:persist.usb.chgdisabled=0
-#    write /sys/class/power_supply/battery/charging_enabled 1
-#
-#service qrngd /system/bin/qrngd -f
-#    class main
-#    user root
-#    group root
-#
-#service qrngp /system/bin/qrngp
-#    class main
-#    user root
-#    group root
-#    oneshot
-#    disabled
-#
-#on property:sys.boot_completed=1
-#    start qrngp
-#
+on property:persist.usb.chgdisabled=1
+write /sys/class/power_supply/battery/charging_enabled 1
+
+on property:persist.usb.chgdisabled=0
+write /sys/class/power_supply/battery/charging_enabled 0
+
+service qrngd /system/bin/qrngd -f
+class main
+user root
+group root
+
+service qrngp /system/bin/qrngp
+class main
+user root
+group root
+oneshot
+
+on property:sys.boot_completed=1
+start qrngp
 
 service sw_coredump /system/bin/sw_coredump
    class main
@@ -132,12 +130,10 @@ service qseecomd /system/bin/qseecomd
 service perfd /system/bin/perfd
    class main
    user root
-   disabled
 
-#service mpdecision /system/bin/mpdecision --avg_comp
-#   user root
-#   disabled
-#
+service mpdecision /system/bin/mpdecision --nosleep --avg_comp
+user root
+
 service per_mgr /system/bin/pm-service
     class core
     user system
@@ -147,7 +143,6 @@ service per_proxy /system/bin/pm-proxy
     class core
     user system
     group system net_raw
-    disabled
 
 on property:init.svc.per_mgr=running
     start per_proxy
@@ -155,11 +150,10 @@ on property:init.svc.per_mgr=running
 on property:sys.shutdown.requested=*
     stop per_proxy
 
-#service qosmgrd /system/bin/qosmgr /system/etc/qosmgr_rules.xml
-#   user system
-#   group system
-#   disabled
-#
+service qosmgrd /system/bin/qosmgr /system/etc/qosmgr_rules.xml
+user system
+group system
+
 service thermal-engine /system/bin/thermal-engine
    class main
    user root
@@ -177,7 +171,7 @@ service security-check2 /sbin/security_boot_check recovery
     oneshot
 
 service time_daemon /system/bin/time_daemon
-   class late_start
+   class main
    user root
    group root
 
@@ -187,60 +181,50 @@ service adsprpcd /system/bin/adsprpcd
    group media
 
 service audiod /system/bin/audiod
-   class late_start
+   class main
    user system
    group system
 
 service usf_tester /system/bin/usf_tester
     user system
     group system inet
-    disabled
 
 service usf_epos /system/bin/usf_epos
     class main
     user system
     group system inet
-    disabled
 
 service usf_gesture /system/bin/usf_gesture
     user system
     group system inet
-    disabled
 
 service usf_sync_gesture /system/bin/usf_sync_gesture
     user system
     group system inet audio
-    disabled
 
 service usf_p2p /system/bin/usf_p2p
     user system
     group system inet
-    disabled
 
 service usf_hovering /system/bin/usf_hovering
     user system
     group system inet
-    disabled
 
 service usf_proximity /system/bin/usf_proximity
     user system
     group system inet audio
-    disabled
 
 service usf_pairing /system/bin/usf_pairing
     user system
     group system inet
-    disabled
 
 service usf_sw_calib /system/bin/usf_sw_calib
     user system
     group system inet
-    disabled
 
 service usf-post-boot /system/bin/sh /system/etc/usf_post_boot.sh
-    class late_start
+    class main
     user root
-    disabled
     oneshot
 
 on property:init.svc.bootanim=stopped
@@ -257,14 +241,13 @@ service imsdatadaemon /system/bin/imsdatadaemon
     user system
     socket ims_datad stream 0660 system radio
     group system wifi radio inet net_raw log qcom_diag net_admin
-    disabled
-#
-#service wcnss-service /system/bin/wcnss_service
-#    class late_start
-#    user root
-#    group system wifi
-#    oneshot
-#
+    
+service wcnss-service /system/bin/wcnss_service
+class late_start
+user root
+group system wifi
+oneshot
+
 on property:sys.ims.QMI_DAEMON_STATUS=1
     start imsdatadaemon
 
@@ -273,20 +256,18 @@ service ims_rtp_daemon /system/bin/ims_rtp_daemon
    user system
    socket ims_rtpd stream 0660 system radio
    group radio net_raw diag qcom_diag log
-   disabled
 
 service imscmservice /system/bin/imscmservice
    class main
    user system
    group radio net_raw diag qcom_diag log
-   disabled
 
 on property:sys.ims.DATA_DAEMON_STATUS=1
    start ims_rtp_daemon
    start imscmservice
 
 service ppd /system/bin/mm-pp-daemon --enable-ad
-    class late_start
+    class main
     user system
     socket pps stream 0660 system system
     group system graphics
@@ -300,7 +281,7 @@ service ml_daemon /system/bin/ml_daemon
     group root
 
 service seald /system/bin/seald
-    class late_start
+    class main
     user root
     group system
 
@@ -311,7 +292,7 @@ service energy-awareness /system/bin/energy-awareness
     oneshot
 
 service dts_configurator /system/bin/dts_configurator
-    class late_start
+    class main
     user system
     group system media audio
     oneshot
@@ -320,10 +301,9 @@ on property:init.svc.bootanim=stopped
     start dts_configurator
 
 service dtseagleservice /system/bin/dts_eagle_service
-    class late_start
+    class main
     user system
     group audio media
-    disabled
 
 on property:init.svc.dts_configurator=stopped
     start dtseagleservice
@@ -331,7 +311,6 @@ on property:init.svc.dts_configurator=stopped
 #set nvm_service
 service nvm_service /system/bin/nvm_service
     class core
-    disabled
     oneshot
     user root
     group root
@@ -349,7 +328,6 @@ on property:sys.factory.test=running
     chown system system /sys/devices/soc.0/qcom,camera-flash.78/flashled2
     chown system system /sys/bus/i2c/devices/3-0051/tk_test_enable
     chmod 0666 /dev/fpc1020
-    setenforce 0
 
 # factory test stoped
 on property:sys.factory.test=stoped
@@ -361,7 +339,6 @@ on property:sys.factory.test=stoped
     chown root root /sys/devices/soc.0/qcom,camera-flash.78/flashled2
     chown root root /sys/bus/i2c/devices/3-0051/tk_test_enable
     chmod 0666 /dev/fpc1020
-    setenforce 1
 
 on init
     write /sys/module/qpnp_rtc/parameters/poweron_alarm 1
@@ -377,7 +354,6 @@ service tinyproxy /system/bin/tinyproxy
     user root
     socket letvbackup stream 0666 bluetooth system
     group bluetooth system
-    disabled
     oneshot
 
     on property:service.tinyproxy.enable=0
@@ -387,7 +363,7 @@ service tinyproxy /system/bin/tinyproxy
     start tinyproxy
 
 service fidodaemon /system/vendor/bin/fidodaemon
-    class late_start
+    class main
     user system
     group system
 
